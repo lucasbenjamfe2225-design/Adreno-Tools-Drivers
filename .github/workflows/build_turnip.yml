@@ -69,15 +69,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
+       include:
           - variant: a7xx
-            artifact: Turnip-A7xx
-          - variant: a7xx-oneui
-            artifact: Turnip-A7xx-OneUI-Glitch
-          - variant: a8xx-gen8
-            artifact: Turnip-A8xx-Gen8
-          - variant: a8xx-patched
-            artifact: Turnip-A8xx-Patched
+            artifact: Turnip-SD870-A650 
+            
 
     steps:
       - name: Checkout Repository
@@ -144,7 +139,7 @@ jobs:
         run: |
           ASSET_COUNT="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')"
           echo "Release assets: $ASSET_COUNT"
-          test "$ASSET_COUNT" -eq 4
+          test "$ASSET_COUNT" -eq 1
 
       - name: Publish Release
         env:
