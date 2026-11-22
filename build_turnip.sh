@@ -64,7 +64,9 @@ revert_d32s8_commit() {
 
 apply_a7xx_base() {
     revert_d32s8_commit
-
+    log "Adreno 650 (SD 870): aplicando ajuste de memoria para evitar cierres..."
+    sed -i 's/bool has_vk_memory_model = true;/bool has_vk_memory_model = false;/g' src/freedreno/vulkan/tu_device.cc || true
+    
     log "A7xx: aplicando has_early_preamble=False..."
     if ! grep -A20 'a7xx_gen1 = GPUProps(' src/freedreno/common/freedreno_devices.py | grep -q 'has_early_preamble = False'; then
         sed -i '/a7xx_gen1 = GPUProps(/a \\        has_early_preamble = False,' src/freedreno/common/freedreno_devices.py
@@ -257,8 +259,9 @@ build_android() {
     export OBJDUMP=llvm-objdump
     export OBJCOPY=llvm-objcopy
     export LDFLAGS="-fuse-ld=lld"
-    export CFLAGS="-D__ANDROID__ -Wno-error -Wno-error=gnu-empty-initializer -Wno-gnu-empty-initializer -Wno-deprecated-declarations -Wno-incompatible-pointer-types-discards-qualifiers -Wno-incompatible-pointer-types"
-    export CXXFLAGS="-D__ANDROID__ -Wno-error -Wno-error=gnu-empty-initializer -Wno-gnu-empty-initializer -Wno-deprecated-declarations -Wno-incompatible-pointer-types-discards-qualifiers -Wno-incompatible-pointer-types"
+        export CFLAGS="-D__ANDROID__ -march=armv8.2-a+dotprod+fp16 -mtune=cortex-a77 -O3 -Wno-error -Wno-error=gnu-empty-initializer -Wno-gnu-empty-initializer -Wno-deprecated-declarations -Wno-incompatible-pointer-types-discards-qualifiers -Wno-incompatible-pointer-types"
+    export CXXFLAGS="-D__ANDROID__ -march=armv8.2-a+dotprod+fp16 -mtune=cortex-a77 -O3 -Wno-error -Wno-error=gnu-empty-initializer -Wno-gnu-empty-initializer -Wno-deprecated-declarations -Wno-incompatible-pointer-types-discards-qualifiers -Wno-incompatible-pointer-types"
+
 
     cat > android-aarch64.txt <<EOF
 [binaries]
@@ -295,7 +298,8 @@ EOF
     local output_dir="/tmp/turnip-$VARIANT"
     rm -rf "$build_dir" "$output_dir"
 
-    meson setup "$build_dir"         --cross-file android-aarch64.txt         --native-file native.txt         --prefix "$output_dir"         -Dbuildtype=release         -Dstrip=true         -Dplatforms=android         -Dvideo-codecs=         -Dplatform-sdk-version=36         -Dandroid-stub=true         -Dgallium-drivers=         -Dvulkan-drivers=freedreno         -Dvulkan-beta=true         -Dfreedreno-kmds=kgsl         -Degl=disabled         -Dandroid-libbacktrace=disabled
+        meson setup "$build_dir" --cross-file android-aarch64.txt --native-file native.txt --prefix "$output_dir" -Dbuildtype=release -Db_ndebug=true -Dstrip=true -Dplatforms=android -Dvideo-codecs= -Dplatform-sdk-version=36 -Dandroid-stub=true -Dgallium-drivers= -Dvulkan-drivers=freedreno -Dvulkan-beta=true -Dfreedreno-kmds=kgsl -Degl=disabled -Dandroid-libbacktrace=disabled
+
 
     ninja -C "$build_dir" install
 
