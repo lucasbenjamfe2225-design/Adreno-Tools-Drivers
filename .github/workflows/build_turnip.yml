@@ -2,6 +2,11 @@ name: Build Turnip Android Variants
 
 on:
   workflow_dispatch:
+    inputs:
+      mesa_commit:
+        description: "Commit de Mesa (corto o completo). Vacio = ultimo main"
+        required: false
+        default: "22c08cc53bd0"
 
 permissions:
   contents: write
@@ -14,10 +19,16 @@ jobs:
       release_tag: ${{ steps.release.outputs.tag }}
       release_name: ${{ steps.release.outputs.name }}
     steps:
-      - name: Resolve Mesa main
+      - name: Resolve Mesa commit
         id: mesa
+        env:
+          INPUT_COMMIT: ${{ github.event.inputs.mesa_commit }}
         run: |
-          COMMIT=$(git ls-remote https://gitlab.freedesktop.org/mesa/mesa.git refs/heads/main | awk '{print $1}')
+          if [ -n "$INPUT_COMMIT" ]; then
+            COMMIT="$INPUT_COMMIT"
+          else
+            COMMIT=$(git ls-remote https://gitlab.freedesktop.org/mesa/mesa.git refs/heads/main | awk '{print $1}')
+          fi
           test -n "$COMMIT"
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
           echo "Mesa commit: $COMMIT"
@@ -28,7 +39,7 @@ jobs:
           DATE=$(date -u +'%Y.%m.%d')
           HUMAN_DATE=$(date -u +'%Y-%m-%d')
           echo "tag=v${DATE}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-          echo "name=Turnip Android 4-pack - ${HUMAN_DATE}" >> "$GITHUB_OUTPUT"
+          echo "name=Turnip R28 Adreno 650 - ${HUMAN_DATE}" >> "$GITHUB_OUTPUT"
 
   prepare_release:
     needs: resolve
@@ -42,21 +53,12 @@ jobs:
           MESA_COMMIT: ${{ needs.resolve.outputs.mesa_commit }}
         run: |
           cat > release-notes.md <<EOF
-          Android/Bionic Turnip variants built from the same Mesa commit:
-          `${MESA_COMMIT}`
-
-          - A7xx
-          - A7xx OneUI Glitch
-          - A8xx Gen8
-          - A8xx Patched
-
-          Upstream KGSL sync and nonblocking timestamp polling verified.
-          A8xx: gralloc UBWC, IMapper5, memory budget and GPU compatibility fixes.
-          A8xx: executable-specific SSBO compatibility.
+          Turnip para Adreno 650 (SD870), Android/Bionic.
+          Mesa: ${MESA_COMMIT}
+          Fix D32S8 intacto, sin parches de a7xx.
           EOF
 
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Draft release already exists; refreshing notes for retry."
             gh release edit "$RELEASE_TAG" --draft --title "$RELEASE_NAME" --notes-file release-notes.md --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$RELEASE_TAG" --draft --title "$RELEASE_NAME" --notes-file release-notes.md --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
@@ -69,10 +71,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-       include:
-          - variant: a7xx
-            artifact: Turnip-SD870-A650 
-            
+        include:
+          - variant: a650
+            artifact: Turnip-SD870-A650
 
     steps:
       - name: Checkout Repository
@@ -110,36 +111,34 @@ jobs:
 
       - name: Verify ZIP
         run: |
-          echo "Generated files:"
           find turnip_workdir -maxdepth 1 -type f -name "Turnip_*.zip" -print
           test "$(find turnip_workdir -maxdepth 1 -type f -name 'Turnip_*.zip' | wc -l)" -eq 1
           unzip -t turnip_workdir/Turnip_*.zip
           unzip -p turnip_workdir/Turnip_*.zip meta.json | python3 -m json.tool
 
-      - name: Upload ${{ matrix.artifact }} directly to GitHub Release
+      - name: Upload to GitHub Release (nombre estable)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
         run: |
           ZIP="$(find turnip_workdir -maxdepth 1 -type f -name 'Turnip_*.zip' -print -quit)"
-          test -n "$ZIP"
           test -f "$ZIP"
-          echo "Uploading $ZIP directly to release $RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" "$ZIP" --clobber --repo "$GITHUB_REPOSITORY"
+          cp "$ZIP" Turnip_R28_Adreno650_Remaster.zip
+          gh release upload "$RELEASE_TAG" Turnip_R28_Adreno650_Remaster.zip --clobber --repo "$GITHUB_REPOSITORY"
 
   release:
     needs: [resolve, prepare_release, build]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     steps:
-      - name: Verify all four release assets
+      - name: Verify release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
         run: |
-          ASSET_COUNT="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')"
-          echo "Release assets: $ASSET_COUNT"
-          test "$ASSET_COUNT" -eq 1
+          COUNT="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')"
+          echo "Release assets: $COUNT"
+          test "$COUNT" -eq 1
 
       - name: Publish Release
         env:
