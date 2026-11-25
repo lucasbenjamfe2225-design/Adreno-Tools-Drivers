@@ -31,7 +31,6 @@ jobs:
           fi
           test -n "$COMMIT"
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
-          echo "Mesa commit: $COMMIT"
 
       - name: Set release metadata
         id: release
@@ -39,7 +38,7 @@ jobs:
           DATE=$(date -u +'%Y.%m.%d')
           HUMAN_DATE=$(date -u +'%Y-%m-%d')
           echo "tag=v${DATE}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-          echo "name=Turnip R28 Adreno 650 - ${HUMAN_DATE}" >> "$GITHUB_OUTPUT"
+          echo "name=Turnip R28 A650 Safe y Compat - ${HUMAN_DATE}" >> "$GITHUB_OUTPUT"
 
   prepare_release:
     needs: resolve
@@ -53,9 +52,12 @@ jobs:
           MESA_COMMIT: ${{ needs.resolve.outputs.mesa_commit }}
         run: |
           cat > release-notes.md <<EOF
-          Turnip para Adreno 650 (SD870), Android/Bionic.
-          Mesa: ${MESA_COMMIT}
-          Fix D32S8 intacto, sin parches de a7xx.
+          Turnip para Adreno 650 (SD870), Android/Bionic. Mesa: ${MESA_COMMIT}
+
+          Safe: has_vk_memory_model=false (anti-crash Unreal), fix D32S8 intacto.
+          Compat: Safe + revert D32S8 (parecido al driver A7xx anterior).
+
+          Estado: en pruebas con Peanuts Native (Hogwarts Legacy, Sparking! ZERO).
           EOF
 
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -73,7 +75,11 @@ jobs:
       matrix:
         include:
           - variant: a650
-            artifact: Turnip-SD870-A650
+            artifact: Turnip-A650-Safe
+            asset: Turnip_R28_A650_Safe.zip
+          - variant: a650-compat
+            artifact: Turnip-A650-Compat
+            asset: Turnip_R28_A650_Compat.zip
 
     steps:
       - name: Checkout Repository
@@ -116,29 +122,30 @@ jobs:
           unzip -t turnip_workdir/Turnip_*.zip
           unzip -p turnip_workdir/Turnip_*.zip meta.json | python3 -m json.tool
 
-      - name: Upload to GitHub Release (nombre estable)
+      - name: Upload to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
+          ASSET_NAME: ${{ matrix.asset }}
         run: |
           ZIP="$(find turnip_workdir -maxdepth 1 -type f -name 'Turnip_*.zip' -print -quit)"
           test -f "$ZIP"
-          cp "$ZIP" Turnip_R28_Adreno650_Remaster.zip
-          gh release upload "$RELEASE_TAG" Turnip_R28_Adreno650_Remaster.zip --clobber --repo "$GITHUB_REPOSITORY"
+          cp "$ZIP" "$ASSET_NAME"
+          gh release upload "$RELEASE_TAG" "$ASSET_NAME" --clobber --repo "$GITHUB_REPOSITORY"
 
   release:
     needs: [resolve, prepare_release, build]
     if: ${{ success() }}
     runs-on: ubuntu-latest
     steps:
-      - name: Verify release asset
+      - name: Verify release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
         run: |
           COUNT="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')"
           echo "Release assets: $COUNT"
-          test "$COUNT" -eq 1
+          test "$COUNT" -eq 2
 
       - name: Publish Release
         env:
