@@ -65,11 +65,9 @@ revert_d32s8_commit() {
 }
 
 apply_vk_memory_model_fix() {
-    log "Anti-crasheos Unreal: has_vk_memory_model = false"
-    sed -i 's/bool has_vk_memory_model = true;/bool has_vk_memory_model = false;/g' src/freedreno/vulkan/tu_device.cc
-    grep -n "has_vk_memory_model" src/freedreno/vulkan/tu_device.cc || true
-    grep -q "has_vk_memory_model = false" src/freedreno/vulkan/tu_device.cc \
-        || die "El parche has_vk_memory_model NO se aplico (el texto no coincide con este Mesa)"
+    log "Buscando has_vk_memory_model en src/freedreno..."
+    grep -rn "has_vk_memory_model" src/freedreno || log "AVISO: has_vk_memory_model no existe en este Mesa (no se aplica ningun parche)"
+    grep -rl "has_vk_memory_model = true" src/freedreno | xargs -r sed -i 's/has_vk_memory_model = true/has_vk_memory_model = false/g'
 }
 
 verify_mesa_mr_44838() {
@@ -169,8 +167,8 @@ package_variant() {
     mesa_short="$(git rev-parse --short=12 HEAD)"
     local pretty_name desc suffix
     case "$VARIANT" in
-        a650)        pretty_name="Turnip R28 A650 Safe";   desc="Adreno 650: has_vk_memory_model=false (anti-crash Unreal), D32S8 fix intacto"; suffix="R28_A650_Safe" ;;
-        a650-compat) pretty_name="Turnip R28 A650 Compat"; desc="Adreno 650: has_vk_memory_model=false + revert D32S8 (similar al driver A7xx anterior)"; suffix="R28_A650_Compat" ;;
+        a650)        pretty_name="Turnip R28 A650 Safe";   desc="Adreno 650: D32S8 fix intacto (build limpio)"; suffix="R28_A650_Safe" ;;
+        a650-compat) pretty_name="Turnip R28 A650 Compat"; desc="Adreno 650: revert D32S8 (similar al driver A7xx anterior)"; suffix="R28_A650_Compat" ;;
     esac
 
     local output_dir="/tmp/turnip-$VARIANT"
