@@ -95,11 +95,13 @@ clean_turnip_driver_names() {
 
 configure_variant() {
     case "$VARIANT" in
-        a650)        apply_vk_memory_model_fix; clean_turnip_driver_names ;;
-        a650-compat) revert_d32s8_commit; apply_vk_memory_model_fix; clean_turnip_driver_names ;;
+        a650)            apply_vk_memory_model_fix; clean_turnip_driver_names ;;
+        a650-compat)     revert_d32s8_commit; apply_vk_memory_model_fix; clean_turnip_driver_names ;;
+        a650-compat-mem) revert_d32s8_commit; clean_turnip_driver_names ;;
         *) die "VARIANT invalido: $VARIANT" ;;
     esac
 }
+
 
 build_android() {
     local cver=36
@@ -153,7 +155,7 @@ EOF
     local build_dir="build-android-aarch64"
     local output_dir="/tmp/turnip-$VARIANT"
     rm -rf "$build_dir" "$output_dir"
-
+[ "$VARIANT" = "a650-compat-mem" ] && sed -i "s/'-O3'/'-O2'/g" android-aarch64.txt
     meson setup "$build_dir" --cross-file android-aarch64.txt --native-file native.txt \
         --prefix "$output_dir" -Dbuildtype=release -Db_ndebug=true -Dstrip=true \
         -Dplatforms=android -Dvideo-codecs= -Dplatform-sdk-version=${cver} \
@@ -170,8 +172,11 @@ package_variant() {
     mesa_short="$(git rev-parse --short=12 HEAD)"
     local pretty_name desc suffix
     case "$VARIANT" in
-        a650)        pretty_name="Turnip R28 A650 Safe";   desc="Adreno 650: D32S8 fix intacto (build limpio)"; suffix="R28_A650_Safe" ;;
-        a650-compat) pretty_name="Turnip R28 A650 Compat"; desc="Adreno 650: revert D32S8 (similar al driver A7xx anterior)"; suffix="R28_A650_Compat" ;;
+        a650)            pretty_name="Turnip R28 A650 Safe";   desc="Adreno 650: D32S8 fix intacto (build limpio)"; suffix="R28_A650_Safe" ;;
+        a650-compat)     pretty_name="Turnip R28 A650 Compat"; desc="Adreno 650: revert D32S8 (similar al driver A7xx anterior)"; suffix="R28_A650_Compat" ;;
+        a650-compat-mem) pretty_name="Turnip R28 A650 Compat Mem"; desc="Adreno 650: revert D32S8 + Memory Model nativo (Unreal/Hogwarts)"; suffix="R28_A650_Compat_Mem" ;;
+                
+          
     esac
 
     local output_dir="/tmp/turnip-$VARIANT"
@@ -182,14 +187,7 @@ package_variant() {
   "name": "$pretty_name",
   "description": "$desc - Mesa $mesa_short",
   "author": "lucasbenjamfe2225 (base: StevenMXZ)",
-  "packageVersion": "$BUILD_VERSION",
-  "vendor": "Mesa",
-  "driverVersion": "Mesa-$mesa_short",
-  "minApi": 28,
-  "libraryName": "libvulkan_freedreno.so"
-}
-EOF
-    local zip_name="Turnip_${suffix}_${mesa_short}.zip"
+  "packageVersion": "$BUI"
     rm -f "$WORKDIR/$zip_name"
     zip -9 -q "$WORKDIR/$zip_name" libvulkan_freedreno.so meta.json
     log "Generado: $WORKDIR/$zip_name"
