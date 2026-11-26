@@ -66,8 +66,11 @@ revert_d32s8_commit() {
 
 apply_vk_memory_model_fix() {
     log "Buscando has_vk_memory_model en src/freedreno..."
-    grep -rn "has_vk_memory_model" src/freedreno || log "AVISO: has_vk_memory_model no existe en este Mesa (no se aplica ningun parche)"
-    grep -rl "has_vk_memory_model = true" src/freedreno | xargs -r sed -i 's/has_vk_memory_model = true/has_vk_memory_model = false/g'
+    if grep -rq "has_vk_memory_model" src/freedreno; then
+        grep -rl "has_vk_memory_model = true" src/freedreno | xargs -r sed -i 's/has_vk_memory_model = true/has_vk_memory_model = false/g' || true
+    else
+        log "AVISO: has_vk_memory_model no existe en este Mesa (no se aplica ningun parche)"
+    fi
 }
 
 verify_mesa_mr_44838() {
