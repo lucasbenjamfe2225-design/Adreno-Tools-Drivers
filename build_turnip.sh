@@ -187,7 +187,14 @@ package_variant() {
   "name": "$pretty_name",
   "description": "$desc - Mesa $mesa_short",
   "author": "lucasbenjamfe2225 (base: StevenMXZ)",
-  "packageVersion": "$BUI"
+   "packageVersion": "$BUILD_VERSION",
+  "vendor": "Mesa",
+  "driverVersion": "Mesa-$mesa_short",
+  "minApi": 28,
+  "libraryName": "libvulkan_freedreno.so"
+}
+EOF
+    local zip_name="Turnip_${suffix}_${mesa_short}.zip"
     rm -f "$WORKDIR/$zip_name"
     zip -9 -q "$WORKDIR/$zip_name" libvulkan_freedreno.so meta.json
     log "Generado: $WORKDIR/$zip_name"
