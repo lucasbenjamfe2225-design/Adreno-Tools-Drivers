@@ -73,13 +73,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
+          include:
           - variant: a650
             artifact: Turnip-A650-Safe
             asset: Turnip_R28_A650_Safe.zip
           - variant: a650-compat
             artifact: Turnip-A650-Compat
             asset: Turnip_R28_A650_Compat.zip
+          - variant: a650-compat-mem
+            artifact: Turnip-A650-Compat-Mem
+            asset: Turnip_R28_A650_Compat_Mem.zip
+            
 
     steps:
       - name: Checkout Repository
@@ -145,7 +149,7 @@ jobs:
         run: |
           COUNT="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')"
           echo "Release assets: $COUNT"
-          test "$COUNT" -eq 2
+          test "$COUNT" -eq 3
 
       - name: Publish Release
         env:
